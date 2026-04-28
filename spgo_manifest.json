@@ -1,0 +1,20 @@
+{
+  "name": "五 Go — Super Portal",
+  "short_name": "五 Go Portal",
+  "start_url": ".",
+  "display": "browser",
+  "background_color": "#04042A",
+  "theme_color": "#04042A",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
