@@ -3,42 +3,62 @@
 <head>
 <meta charset="UTF-8">
 <title>五 Go — Super Portal Diagram</title>
+<link rel="icon" type="image/png" href="https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png">
+<link rel="manifest" href="spgo_manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Grey+Qo&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #04042A; font-family: 'Cinzel', serif; padding: 40px; }
-h1 { color: #CCFF00; font-size: 20px; letter-spacing: 0.2em; text-align: center; margin-bottom: 4px; }
-.sub { text-align: center; color: rgba(255,255,255,0.3); font-family: 'Grey Qo', cursive; font-size: 14px; margin-bottom: 28px; }
-#wrap { overflow: auto; }
+html, body { height: 100%; background: #04042A; font-family: 'Cinzel', serif; overflow: hidden; }
+#header { padding: 16px 40px 8px; }
+h1 { color: #CCFF00; font-size: 20px; letter-spacing: 0.2em; text-align: center; margin-bottom: 2px; }
+.sub { text-align: center; color: rgba(255,255,255,0.3); font-family: 'Grey Qo', cursive; font-size: 14px; margin-bottom: 6px; }
+#controls { text-align: center; margin-bottom: 6px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+#controls button { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #ccc;
+  font-family: 'Cinzel', serif; font-size: 12px; padding: 4px 14px; border-radius: 20px; cursor: pointer; }
+#controls button:hover { background: rgba(255,255,255,0.16); }
+#zoom-label { color: rgba(255,255,255,0.4); font-size: 11px; min-width: 42px; text-align:center; }
+#wrap { position: relative; overflow: hidden; width: 100%;
+  height: calc(100vh - 130px); cursor: grab; user-select: none; }
+#wrap.grabbing { cursor: grabbing; }
+#canvas { transform-origin: 0 0; will-change: transform; }
 svg { display: block; }
-.legend { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
-.leg { display: flex; align-items: center; gap: 7px; font-family: serif; font-size: 11px; color: rgba(255,255,255,0.55); }
-.sw { width: 20px; height: 13px; border-radius: 3px; border: 1.5px solid; flex-shrink: 0; }
+#legend { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  padding: 6px 40px 10px; border-top: 1px solid rgba(255,255,255,0.06); }
+.leg { display: flex; align-items: center; gap: 6px; font-family: serif; font-size: 10px; color: rgba(255,255,255,0.45); }
+.sw { width: 18px; height: 11px; border-radius: 3px; border: 1.5px solid; flex-shrink: 0; }
 </style>
 </head>
 <body>
-<h1>五 Go — Super Portal</h1>
-<p class="sub">Navigation structure · read left → right</p>
-<div id="wrap"><svg id="diagram"></svg></div>
-<div class="legend">
+<div id="header">
+  <h1>五 Go — Super Portal</h1>
+  <p class="sub">Navigation structure · read left → right</p>
+  <div id="controls">
+    <button onclick="zoom(-0.15)">－</button>
+    <span id="zoom-label">100%</span>
+    <button onclick="zoom(0.15)">＋</button>
+    <button onclick="resetView()">⊡ Fit</button>
+  </div>
+</div>
+<div id="wrap">
+  <div id="canvas"><svg id="diagram"></svg></div>
+</div>
+<div id="legend">
   <div class="leg"><div class="sw" style="background:#000073;border-color:#00BFFF;"></div>Hub</div>
   <div class="leg"><div class="sw" style="background:#CBFFC0;border-color:#3A9E26;"></div>Portal</div>
   <div class="leg"><div class="sw" style="background:#E0B0FF;border-color:#8833CC;"></div>External Link</div>
-  <div class="leg"><div class="sw" style="background:#C8EEFF;border-color:#0077AA;"></div>In-app Tool</div>
+  <div class="leg"><div class="sw" style="background:#00BFFF;border-color:#0090CC;"></div>In-app Tool</div>
   <div class="leg"><div class="sw" style="background:#E8E8FF;border-color:#4455AA;"></div>Screen</div>
   <div class="leg" style="opacity:.4;"><div class="sw" style="background:#bbb;border-color:#888;"></div>Soon</div>
 </div>
 
 <script>
 // ── UNIVERSAL RULES ───────────────────────────────────────────────────────────
-// Type → { bg, name1Color, borderColor }
-// In-app Tool background: #C8EEFF (per inventory), text: White #ffffff
 const TYPE = {
-  'Hub':           { bg:'#000073', name1:'#ffffff', border:'#00BFFF' },
-  'Portal':        { bg:'#CBFFC0', name1:'#000073', border:'#3A9E26' },
-  'External Link': { bg:'#E0B0FF', name1:'#9900ff', border:'#8833CC' },
-  'In-app Tool':   { bg:'#C8EEFF', name1:'#ffffff', border:'#0077AA' },
-  'Screen':        { bg:'#E8E8FF', name1:'#0000ff', border:'#4455AA' },
+  'Hub':           { bg:'#000073', name1:'#ffffff', border:'#00BFFF', shadow:'rgba(0,191,255,0.5)'   },
+  'Portal':        { bg:'#CBFFC0', name1:'#000073', border:'#3A9E26', shadow:'rgba(58,158,38,0.5)'   },
+  'External Link': { bg:'#E0B0FF', name1:'#9900ff', border:'#8833CC', shadow:'rgba(136,51,204,0.5)'  },
+  'In-app Tool':   { bg:'#00BFFF', name1:'#ffffff', border:'#0090CC', shadow:'rgba(0,191,255,0.6)'   },
+  'Screen':        { bg:'#E8E8FF', name1:'#0000ff', border:'#4455AA', shadow:'rgba(68,85,170,0.45)'  },
 };
 const ID_COLOR   = '#b7b7b7';   // gray for all ID text
 const ALIAS_FONT = 'Grey Qo';   // Name 2 font
@@ -48,256 +68,250 @@ const GATE_H     = 16;
 const GLOW_COLOR = 'rgba(200,220,255,0.6)';
 
 // ── NODE DATA ─────────────────────────────────────────────────────────────────
-// Global rule: Full name = Emoji + Name1 + Name2 ALL ON THE SAME LINE,
-//   separated by single spaces, but with DIFFERENT font/size/color per segment.
-// Name 2 font: Grey Qo. Name 2 color: unique #ccffXX per node (from inventory col 26).
-// Sizes per level (inventory):
-//   L0: boxW:400, boxH:240, idSize:24, name1Size:30, name2Size:36
-//   L1: boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:28.8
-//   L2: boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24
-//   L3: boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8
-//   L4: boxW:240, boxH:144, idSize:7.5, name1Size:9.5, name2Size:11.4
+// Name 2 sizes (from screenshot): L0=50, L1=40, L2=33, L3=23, L4=16
+// Name 1 sizes: L0=30, L1=24, L2=20, L3=14, L4=9.5
+// Box sizes: L0=400×240, L1=400×240, L2=360×216, L3=300×180, L4=240×144
 
 const NODES = [
   // ── L0 ──────────────────────────────────────────────────────────────────────
   { id:'B0', emoji:'', name1:'Super Portal', name2:'Go 五', n2color:'#ccff00',
-    type:'Hub', status:'Live', gate:'',
-    boxW:400, boxH:240, idSize:24, name1Size:30, name2Size:36,
+    type:'Hub', status:'Live', gate:'', url:'',
+    boxW:400, boxH:240, idSize:24, name1Size:30, name2Size:50,
     imgs:['https://i.postimg.cc/fRdF8YCj/Hibiscus_orange_5.png'],
     children:['B1.1','B1.2','B1.3','B1.4','B1.5','B1.E1'] },
 
   // ── L1 ──────────────────────────────────────────────────────────────────────
   { id:'B1.1', emoji:'📅', name1:'擇日 Date Selection', name2:'Ajisai', n2color:'#ccff01',
-    type:'Portal', status:'Live', gate:'',
-    boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:28.8,
+    type:'Portal', status:'Live', gate:'', url:'',
+    boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:40,
     imgs:['https://i.postimg.cc/kD3H57dt/Ajisai-Portal-2Heads.png'],
     children:['B2.1.T1','B2.1.T2','B2.1.T3','B2.1.T4','B2.1.T5','B2.1.S1','B2.1.S2','B2.1.S3'] },
 
   { id:'B1.2', emoji:'', name1:'☯️ 奇門遁甲 QMDJ\n🔮 占卜  Divination', name2:'', n2color:'#ccff02',
-    type:'Hub', status:'Live', gate:'',
+    type:'Hub', status:'Live', gate:'', url:'',
     boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:0,
     imgs:['https://i.postimg.cc/SRYGBpwy/QMDJ-i-Botan.png','https://i.postimg.cc/kgmb9JGx/tsutsuji_1_no_leave_2.png'],
     children:['B2.2.1','B2.2.2'] },
 
   { id:'B1.3', emoji:'🎭', name1:'Individual Life Study', name2:'', n2color:'#ccff03',
-    type:'Hub', status:'Live', gate:'',
+    type:'Hub', status:'Live', gate:'', url:'',
     boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:0,
     imgs:['https://i.postimg.cc/TwN0qW23/Rose-Thao-Dien-Mam-03-26.png','https://i.postimg.cc/7YhrDb9B/Fuki-portal-image.png'],
     children:['B2.3.1','B2.3.2'] },
 
   { id:'B1.4', emoji:'🏘️', name1:'風水 Fengshui', name2:'', n2color:'#ccff04',
-    type:'Portal', status:'Live', gate:'',
+    type:'Portal', status:'Live', gate:'', url:'',
     boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:0,
     imgs:['https://i.postimg.cc/13SDRFLD/FS-i-Manju.png'],
     children:['B2.4.T1','B2.4.T2','B2.4.T3','B2.4.S1','B2.4.S2','B2.4.S3','B2.4.S4','B2.4.S5','B2.4.S6'] },
 
   { id:'B1.5', emoji:'☯', name1:'易經 Yi Jing', name2:'Tenjiku', n2color:'#ccff05',
-    type:'External Link', status:'Live', gate:'col M',
-    boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:28.8,
+    type:'External Link', status:'Live', gate:'col M', url:'',
+    boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:40,
     imgs:['https://i.postimg.cc/g0MQdmBz/Yijing-I-tenjiku.png'], children:[] },
 
-  { id:'B1.E1', emoji:'👤', name1:'Your Personal Portal FS (vi)', name2:'Kuchinashi', n2color:'#ccff06',
-    type:'External Link', status:'Live', gate:'col C',
-    boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:28.8,
+  { id:'B1.E1', emoji:'👤', name1:'Your Personal Portal', name2:'Kuchinashi', n2color:'#ccff06',
+    type:'External Link', status:'Live', gate:'col C', url:'',
+    boxW:400, boxH:240, idSize:18, name1Size:24, name2Size:40,
     imgs:['https://i.postimg.cc/qqwDTzrF/Kuchinashi.png'], children:[] },
 
   // ── L2 — from B1.1 ──────────────────────────────────────────────────────────
   { id:'B2.1.T1', emoji:'', name1:'Today Snapshot', name2:'', n2color:'#ccff07',
-    type:'In-app Tool', status:'Soon', gate:'',
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0, imgs:[], children:[] },
 
   { id:'B2.1.T2', emoji:'🕒', name1:'Current Hour', name2:'', n2color:'#ccff08',
-    type:'In-app Tool', status:'Soon', gate:'',
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0, imgs:[], children:[] },
 
   { id:'B2.1.T3', emoji:'⏳', name1:'FS Charts For DS', name2:'', n2color:'#ccff09',
-    type:'In-app Tool', status:'Soon', gate:'',
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0, imgs:[], children:[] },
 
   { id:'B2.1.T4', emoji:'📅', name1:'Monthly Calendar', name2:'', n2color:'#ccff10',
-    type:'In-app Tool', status:'Live', gate:'',
+    type:'In-app Tool', status:'Live', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0, imgs:[], children:[] },
 
   { id:'B2.1.T5', emoji:'💇🏻‍♀️', name1:'Tibetan Haircut Advice', name2:'', n2color:'#ccff11',
-    type:'In-app Tool', status:'Live', gate:'',
+    type:'In-app Tool', status:'Live', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0,
     imgs:['https://i.postimg.cc/Jn0gckSD/Boddhisattva-cutting-hai.png'], children:[] },
 
   { id:'B2.1.S1', emoji:'💠', name1:'DS (iii) Ajisai', name2:'', n2color:'#ccff12',
-    type:'External Link', status:'Live', gate:'',
+    type:'External Link', status:'Live', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0,
     imgs:['https://i.postimg.cc/15ky2Vyf/ajisai-DS.png'], children:[] },
 
   { id:'B2.1.S2', emoji:'〇', name1:'Auxiliary Stars', name2:'Sora', n2color:'#ccff13',
-    type:'External Link', status:'Live', gate:'',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:[], children:[] },
 
   { id:'B2.1.S3', emoji:'🔤', name1:'Chn (i)', name2:'Ginkgo', n2color:'#ccff14',
-    type:'External Link', status:'Live', gate:'',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/fRm85t91/Ginkgo-Chn-i.png'], children:[] },
 
   // ── L2 — from B1.2 ──────────────────────────────────────────────────────────
   { id:'B2.2.1', emoji:'☯️', name1:'奇門遁甲 QMDJ', name2:'', n2color:'#ccff15',
-    type:'Hub', status:'Live', gate:'',
+    type:'Hub', status:'Live', gate:'', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0,
     imgs:['https://i.postimg.cc/SRYGBpwy/QMDJ-i-Botan.png'],
     children:['B2.2.1.S1','B2.2.1.S2','B2.2.1.S3','B2.2.1.S4','B2.2.1.S5'] },
 
   { id:'B2.2.2', emoji:'🔮', name1:'占卜 Divination Portal', name2:'Tsutsuji', n2color:'#ccff16',
-    type:'Portal', status:'Live', gate:'',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'Portal', status:'Live', gate:'', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/Qd3Ts8C0/tsutsuji_2.png'],
     children:['B2.2.2.T1','B2.2.2.T2','B2.2.2.T3','B2.2.2.T4','B2.2.2.S1'] },
 
   // ── L2 — from B1.3 ──────────────────────────────────────────────────────────
   { id:'B2.3.1', emoji:'🌹', name1:'八字 Bazi', name2:'Bara', n2color:'#ccff17',
-    type:'Hub', status:'Live', gate:'',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'Hub', status:'Live', gate:'', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/TwN0qW23/Rose-Thao-Dien-Mam-03-26.png'],
     children:['B3.3.1','B3.3.1.S1'] },
 
   { id:'B2.3.2', emoji:'🕉️', name1:'Vedic Portal', name2:'Fuki', n2color:'#ccff18',
-    type:'Portal', status:'Live', gate:'',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'Portal', status:'Live', gate:'', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/7YhrDb9B/Fuki-portal-image.png'],
     children:['B3.3.2.T1','B3.3.2.T2','B3.3.2.S1'] },
 
   // ── L2 — from B1.4 ──────────────────────────────────────────────────────────
   { id:'B2.4.T1', emoji:'🧭', name1:'House Facing Ruler', name2:'SK Finlay', n2color:'#ccff19',
-    type:'In-app Tool', status:'Live', gate:'col E',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24, imgs:[], children:[] },
+    type:'In-app Tool', status:'Live', gate:'col E', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33, imgs:[], children:[] },
 
   { id:'B2.4.T2', emoji:'', name1:'Flying Stars Charts', name2:'', n2color:'#ccff20',
-    type:'In-app Tool', status:'Live', gate:'col E',
+    type:'In-app Tool', status:'Live', gate:'col E', url:'',
     boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:0,
     imgs:['https://i.postimg.cc/nr5T0JbR/2NW1-1.png'], children:[] },
 
   { id:'B2.4.T3', emoji:'', name1:'FS Ready Reckoners', name2:'Ume', n2color:'#ccff21',
-    type:'In-app Tool', status:'Soon', gate:'',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/4ympFdWS/Ume-fsvii.png'], children:[] },
 
   { id:'B2.4.S1', emoji:'', name1:'FS (i)', name2:'Maju', n2color:'#ccff22',
-    type:'External Link', status:'Live', gate:'col D',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'col D', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/13SDRFLD/FS-i-Manju.png'], children:[] },
 
   { id:'B2.4.S2', emoji:'', name1:'FS (ii)', name2:'Shage', n2color:'#ccff23',
-    type:'External Link', status:'Live', gate:'col E',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'col E', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/VsSqKmq5/FS-ii-Shage.png'], children:[] },
 
   { id:'B2.4.S3', emoji:'', name1:'FS (iii)', name2:'Higanbana', n2color:'#ccff24',
-    type:'External Link', status:'Live', gate:'col N',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'col N', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/kG6tvH48/Higanbana.png'], children:[] },
 
   { id:'B2.4.S4', emoji:'', name1:'FS (iv)', name2:'Kurinso', n2color:'#ccff25',
-    type:'External Link', status:'Live', gate:'col O',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'col O', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/d0dgkQvX/Primula-white.png'], children:[] },
 
   { id:'B2.4.S5', emoji:'', name1:'FS (v)', name2:'Sokei', n2color:'#ccff26',
-    type:'External Link', status:'Live', gate:'col D/E',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'col D/E', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/9M0MFXmG/FS-v-Sokei.png'], children:[] },
 
   { id:'B2.4.S6', emoji:'', name1:'FS (vi)', name2:'Kuchinashi', n2color:'#ccff27',
-    type:'External Link', status:'Live', gate:'col D/E',
-    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:24,
+    type:'External Link', status:'Live', gate:'col D/E', url:'',
+    boxW:360, boxH:216, idSize:14, name1Size:20, name2Size:33,
     imgs:['https://i.postimg.cc/qqwDTzrF/Kuchinashi.png'], children:[] },
 
   // ── L3 — from B2.2.1 ────────────────────────────────────────────────────────
   { id:'B2.2.1.S1', emoji:'', name1:'QMDJ (i)', name2:'Botan', n2color:'#ccff28',
-    type:'External Link', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/SRYGBpwy/QMDJ-i-Botan.png'], children:[] },
 
   { id:'B2.2.1.S2', emoji:'', name1:'QMDJ (ii)', name2:'Take', n2color:'#ccff29',
-    type:'External Link', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8, imgs:[], children:[] },
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23, imgs:[], children:[] },
 
   { id:'B2.2.1.S3', emoji:'', name1:'QMDJ (iii)', name2:'Shoubu', n2color:'#ccff30',
-    type:'External Link', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/0ygb2Fbw/Iris-Shobu-logo-web.png'], children:[] },
 
   { id:'B2.2.1.S4', emoji:'', name1:'QMDJ (iv)', name2:'Tsubaki', n2color:'#ccff31',
-    type:'External Link', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/vHr8vzQj/Tsubaki-3.png'], children:[] },
 
   { id:'B2.2.1.S5', emoji:'', name1:'QMDJ (v)', name2:'Mizuka', n2color:'#ccff32',
-    type:'External Link', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/15ybjZP5/Mizuka.png'], children:[] },
 
   // ── L3 — from B2.2.2 ────────────────────────────────────────────────────────
   { id:'B2.2.2.T1', emoji:'🎲', name1:'Dice Roller', name2:'Saikoro', n2color:'#ccff33',
-    type:'In-app Tool', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'In-app Tool', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/2Sw1KPTF/2-d6.png'], children:[] },
 
   { id:'B2.2.2.T2', emoji:'🔮', name1:'觀音靈簽 Guan Yin Oracle', name2:'GYO', n2color:'#ccff34',
-    type:'In-app Tool', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'In-app Tool', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/cLc0dSD1/Kwan-Yin.png'], children:[] },
 
   { id:'B2.2.2.T3', emoji:'🔮', name1:'郭璞數 Oracle', name2:'GFO', n2color:'#ccff35',
-    type:'In-app Tool', status:'Soon', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8, imgs:[], children:[] },
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23, imgs:[], children:[] },
 
   { id:'B2.2.2.T4', emoji:'', name1:'Fortune Wheel', name2:'Fukubiki', n2color:'#ccff36',
-    type:'In-app Tool', status:'Soon', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8, imgs:[], children:[] },
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23, imgs:[], children:[] },
 
   { id:'B2.2.2.S1', emoji:'', name1:'Divination (i)', name2:'Tsutsuji', n2color:'#ccff37',
-    type:'External Link', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/kgmb9JGx/tsutsuji_1_no_leave_2.png'], children:[] },
 
   // ── L3 — from B2.3.1 ────────────────────────────────────────────────────────
   { id:'B3.3.1', emoji:'', name1:'2Hs Subportal', name2:'Ran-Yuri', n2color:'#ccff38',
-    type:'Portal', status:'Live', gate:'',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'Portal', status:'Live', gate:'', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/MZsnjcLC/Blue-Orchid-Web-Email.png','https://i.postimg.cc/K8kWmKK7/Kisuge-single-web-email.png'],
     children:['B3.3.1.T1','B3.3.1.T2','B3.3.1.T3'] },
 
   { id:'B3.3.1.S1', emoji:'', name1:'Bazi (i)', name2:'Bara', n2color:'#ccff39',
-    type:'External Link', status:'Live', gate:'col G',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'col G', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/5NJLmvn2/bazi_i_Bara.png'], children:[] },
 
   // ── L3 — from B2.3.2 ────────────────────────────────────────────────────────
   { id:'B3.3.2.T1', emoji:'', name1:'Divisional Chart Data', name2:'', n2color:'#ccff40',
-    type:'In-app Tool', status:'Live', gate:'col F',
+    type:'In-app Tool', status:'Live', gate:'col F', url:'',
     boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:0,
     imgs:['https://i.postimg.cc/bwm6CsPv/Fuki-1.png'], children:[] },
 
   { id:'B3.3.2.T2', emoji:'', name1:'Divisional Chart Images', name2:'', n2color:'#ccff41',
-    type:'In-app Tool', status:'Soon', gate:'',
+    type:'In-app Tool', status:'Soon', gate:'', url:'',
     boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:0, imgs:[], children:[] },
 
   { id:'B3.3.2.S1', emoji:'', name1:'VA (i)', name2:'Fuki', n2color:'#ccff42',
-    type:'External Link', status:'Live', gate:'col F',
-    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:16.8,
+    type:'External Link', status:'Live', gate:'col F', url:'',
+    boxW:300, boxH:180, idSize:10, name1Size:14, name2Size:23,
     imgs:['https://i.postimg.cc/7YhrDb9B/Fuki-portal-image.png'], children:[] },
 
   // ── L4 — from B3.3.1 ────────────────────────────────────────────────────────
   { id:'B3.3.1.T1', emoji:'⚡', name1:'Quickly locate your 2Hs', name2:'', n2color:'#ccff43',
-    type:'Screen', status:'Live', gate:'',
+    type:'Screen', status:'Live', gate:'', url:'',
     boxW:240, boxH:144, idSize:7.5, name1Size:9.5, name2Size:0,
     imgs:['https://i.postimg.cc/hvw4ZmWx/MOTH-orchid-WHITE-web-email.png'], children:[] },
 
   { id:'B3.3.1.T2', emoji:'🔍', name1:'Find your 2Hs', name2:'', n2color:'#ccff44',
-    type:'Screen', status:'Live', gate:'',
+    type:'Screen', status:'Live', gate:'', url:'',
     boxW:240, boxH:144, idSize:7.5, name1Size:9.5, name2Size:0,
     imgs:['https://i.postimg.cc/5tVbTphW/MOTH-orchid-pink-web-email.png'], children:[] },
 
   { id:'B3.3.1.T3', emoji:'🗂️', name1:'Directory', name2:'', n2color:'#ccff45',
-    type:'External Link', status:'Live', gate:'Subscription',
+    type:'External Link', status:'Live', gate:'Subscription', url:'',
     boxW:240, boxH:144, idSize:7.5, name1Size:9.5, name2Size:0,
     imgs:['https://i.postimg.cc/MZsnjcLC/Blue-Orchid-Web-Email.png'], children:[] },
 ];
@@ -307,11 +321,11 @@ const MAP = {};
 NODES.forEach(n => MAP[n.id] = n);
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const COL_GAP  = 70;
-const ROW_GAP  = 18;
-const PAD_X    = 50;
-const PAD_Y    = 50;
-const GATE_PAD = 18;  // height reserved below box for gate text
+const COL_GAP  = 50;
+const ROW_GAP  = 10;
+const PAD_X    = 40;
+const PAD_Y    = 40;
+const GATE_PAD = 18;
 
 function nodeH(n)    { return n.boxH + (n.gate ? GATE_PAD : 0); }
 function subtreeH(n) {
@@ -327,7 +341,7 @@ function assignPos(n, topY, depth) {
   n.cy = topY + sh/2;
   if (n.children && n.children.length > 0) {
     const ch = n.children.reduce((s,id) => s + subtreeH(MAP[id]),0)
-             + (n.children.length-1) * ROW_GAP;
+             + (n.children.length-1)*ROW_GAP;
     let y = topY + (sh-ch)/2;
     n.children.forEach(id => { assignPos(MAP[id], y, depth+1); y += subtreeH(MAP[id])+ROW_GAP; });
   }
@@ -343,7 +357,6 @@ function computeColX() {
 
 function flatten(id, arr=[]) { const n=MAP[id]; arr.push(n); (n.children||[]).forEach(c=>flatten(c,arr)); return arr; }
 
-// ── Wrap text lines ───────────────────────────────────────────────────────────
 function wrapText(text, maxW, fontSize) {
   const charW = fontSize * 0.58;
   const max   = Math.floor(maxW / charW);
@@ -382,13 +395,33 @@ function build() {
     return e;
   };
 
-  // ── defs: glow filter ──
+  // ── defs: filters + gradients ──
   const defs = el('defs');
-  const filt = el('filter', { id:'glow', x:'-20%', y:'-20%', width:'140%', height:'140%' });
-  const fe1  = el('feGaussianBlur', { stdDeviation:'2', result:'blur' });
-  const fe2  = el('feComposite',    { in:'SourceGraphic', in2:'blur', operator:'over' });
-  filt.appendChild(fe1); filt.appendChild(fe2);
-  defs.appendChild(filt);
+
+  // Image glow filter
+  const imgGlow = el('filter', { id:'glow', x:'-20%', y:'-20%', width:'140%', height:'140%' });
+  const igb = el('feGaussianBlur', { stdDeviation:'2.5', result:'blur' });
+  const igc = el('feComposite',    { in:'SourceGraphic', in2:'blur', operator:'over' });
+  imgGlow.appendChild(igb); imgGlow.appendChild(igc);
+  defs.appendChild(imgGlow);
+
+  // Shadow blur filter for button shadow rects
+  const shadowFilt = el('filter', { id:'shadowBlur', x:'-15%', y:'-15%', width:'135%', height:'140%' });
+  shadowFilt.appendChild(el('feGaussianBlur', { in:'SourceGraphic', stdDeviation:'6' }));
+  defs.appendChild(shadowFilt);
+
+  // Inner highlight gradient (top shimmer to give bevelled feel)
+  // We create one per type colour
+  Object.entries(TYPE).forEach(([typeName, t]) => {
+    const gid = 'shine_' + typeName.replace(/\s+/g,'_');
+    const grad = el('linearGradient', { id: gid, x1:'0', y1:'0', x2:'0', y2:'1' });
+    const s1 = el('stop', { offset:'0%',   'stop-color':'rgba(255,255,255,0.18)' });
+    const s2 = el('stop', { offset:'45%',  'stop-color':'rgba(255,255,255,0.05)' });
+    const s3 = el('stop', { offset:'100%', 'stop-color':'rgba(0,0,0,0.12)' });
+    grad.appendChild(s1); grad.appendChild(s2); grad.appendChild(s3);
+    defs.appendChild(grad);
+  });
+
   svg.appendChild(defs);
 
   // ── Connectors ──
@@ -407,44 +440,85 @@ function build() {
 
   // ── Nodes ──
   all.forEach(n => {
-    const t  = TYPE[n.type] || TYPE['Screen'];
-    const nx = n.x, ny = n.cy - n.boxH/2;
+    const t    = TYPE[n.type] || TYPE['Screen'];
+    const nx   = n.x, ny = n.cy - n.boxH/2;
     const soon = n.status === 'Soon';
-    const g  = el('g', { opacity: soon ? '0.42' : '1' });
+    const rx   = 10; // rounded corners — slightly more for button feel
+    const shineId = 'shine_' + n.type.replace(/\s+/g,'_');
 
-    // Box — corner radius 7, border width 1.5
-    g.appendChild(el('rect', { x:nx, y:ny, width:n.boxW, height:n.boxH, rx:7,
-      fill:t.bg, stroke:t.border, 'stroke-width':1.5 }));
+    const g = el('g', { opacity: soon ? '0.42' : '1', style: 'cursor:' + (n.url ? 'pointer' : 'default') });
+
+    // ── Drop shadow rect ──
+    g.appendChild(el('rect', {
+      x: nx+3, y: ny+6, width: n.boxW, height: n.boxH, rx,
+      fill: t.shadow || 'rgba(0,0,0,0.4)',
+      filter: 'url(#shadowBlur)',
+      opacity: '0.7'
+    }));
+
+    // ── Main box ──
+    g.appendChild(el('rect', {
+      x:nx, y:ny, width:n.boxW, height:n.boxH, rx,
+      fill: t.bg,
+      stroke: t.border,
+      'stroke-width': 2
+    }));
+
+    // ── Top-edge highlight (inner bevel shimmer) ──
+    g.appendChild(el('rect', {
+      x:nx+1, y:ny+1, width:n.boxW-2, height:n.boxH-2, rx: rx-1,
+      fill: `url(#${shineId})`,
+      opacity: '1',
+      'pointer-events': 'none'
+    }));
+
+    // ── Hover interaction (only for nodes with URL) ──
+    if (n.url) {
+      const hitBox = el('rect', {
+        x:nx, y:ny, width:n.boxW, height:n.boxH, rx,
+        fill:'transparent', style:'cursor:pointer'
+      });
+      hitBox.addEventListener('click', () => window.open(n.url, '_blank'));
+      hitBox.addEventListener('mouseenter', () => {
+        g.style.transform = `translate(0px, -2px)`;
+        g.style.transition = 'transform 0.12s ease';
+      });
+      hitBox.addEventListener('mouseleave', () => {
+        g.style.transform = '';
+      });
+      g.appendChild(hitBox);
+    }
 
     // ── ID text (top-left, Cinzel, gray #b7b7b7) ──
     g.appendChild(txt(n.id, {
-      x: nx+9, y: ny + n.idSize + 5,
+      x: nx+9, y: ny + n.idSize + 6,
       'font-family':'Cinzel, serif', 'font-size': n.idSize,
-      fill: ID_COLOR, 'text-anchor':'start'
+      fill: ID_COLOR, 'text-anchor':'start', 'pointer-events':'none'
     }));
 
     // ── Name block: Emoji + Name1 + Name2 ALL ON THE SAME LINE ──
-    // Name1: Cinzel weight 600, type color. Name2: Grey Qo, #ccffXX color, inline.
-    const n1lineH  = n.name1Size * 1.28;
-    const n1startY = ny + n.idSize + 10 + n.name1Size;
+    const n1lineH   = n.name1Size * 1.3;
+    const n1startY  = ny + n.idSize + 12 + n.name1Size;
     const name1text = (n.emoji ? n.emoji+' ' : '') + n.name1;
-    const n1lines  = wrapText(name1text, n.boxW - 18, n.name1Size);
+    const n1lines   = wrapText(name1text, n.boxW - 18, n.name1Size);
 
-    // All lines except last: plain Name1 Cinzel
     for (let i = 0; i < n1lines.length - 1; i++) {
-      g.appendChild(txt(n1lines[i], {
-        x: nx+9, y: n1startY + i*n1lineH,
-        'font-family':'Cinzel, serif', 'font-size': n.name1Size,
-        'font-weight':600, fill: t.name1, 'text-anchor':'start'
-      }));
+      const lt = el('text', { x: nx+9, y: n1startY + i*n1lineH, 'text-anchor':'start', 'pointer-events':'none' });
+      const sp = document.createElementNS(NS, 'tspan');
+      sp.setAttribute('font-family', 'Cinzel, serif');
+      sp.setAttribute('font-size', n.name1Size);
+      sp.setAttribute('font-weight', 600);
+      sp.setAttribute('fill', t.name1);
+      sp.textContent = n1lines[i];
+      lt.appendChild(sp);
+      g.appendChild(lt);
     }
 
-    // Last line: Name1 tspan + Name2 tspan inline on same baseline
-    const lastLineY = n1startY + (n1lines.length - 1) * n1lineH;
-    const lastLineTxt = el('text', {
-      x: nx+9, y: lastLineY, 'text-anchor':'start'
-    });
-    const n1span = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    // Last line: Name1 + Name2 inline
+    const lastLineY   = n1startY + (n1lines.length - 1) * n1lineH;
+    const lastLineTxt = el('text', { x: nx+9, y: lastLineY, 'text-anchor':'start', 'pointer-events':'none' });
+
+    const n1span = document.createElementNS(NS, 'tspan');
     n1span.setAttribute('font-family', 'Cinzel, serif');
     n1span.setAttribute('font-size', n.name1Size);
     n1span.setAttribute('font-weight', 600);
@@ -453,21 +527,21 @@ function build() {
     lastLineTxt.appendChild(n1span);
 
     if (n.name2 && n.name2Size > 0) {
-      const n2span = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      const n2span = document.createElementNS(NS, 'tspan');
       n2span.setAttribute('font-family', "'Grey Qo', cursive");
       n2span.setAttribute('font-size', n.name2Size);
       n2span.setAttribute('font-weight', 400);
       n2span.setAttribute('fill', n.n2color);
-      n2span.setAttribute('dy', ((n.name2Size - n.name1Size) * 0.25).toFixed(1));
+      // Align baselines: Grey Qo is taller so shift it down slightly
+      n2span.setAttribute('dy', ((n.name2Size - n.name1Size) * 0.22).toFixed(1));
       n2span.textContent = ' ' + n.name2;
       lastLineTxt.appendChild(n2span);
     }
     g.appendChild(lastLineTxt);
 
-    let n1bottom = lastLineY + n.name1Size * 0.3;
+    const n1bottom = lastLineY + n.name1Size * 0.4;
 
-    // ── Images — 10px below name block, height fills to 10px from bottom,
-    //              width natural/proportional, centered horizontally, glow effect ──
+    // ── Images ──
     if (n.imgs && n.imgs.length > 0) {
       const imgAreaTop = n1bottom + 10;
       const imgAreaBot = ny + n.boxH - 10;
@@ -477,38 +551,33 @@ function build() {
       const imgStartX  = nx + (n.boxW - totalImgW) / 2;
 
       n.imgs.forEach((src, i) => {
-        const im = el('image', {
+        g.appendChild(el('image', {
           href: src,
-          x: imgStartX + i*(slotW+6),
-          y: imgAreaTop,
-          width: slotW,
-          height: imgH,
+          x: imgStartX + i*(slotW+6), y: imgAreaTop,
+          width: slotW, height: imgH,
           preserveAspectRatio: 'xMidYMid meet',
-          filter: 'url(#glow)'
-        });
-        g.appendChild(im);
+          filter: 'url(#glow)',
+          'pointer-events': 'none'
+        }));
       });
     }
 
-    // ── Gate text — below box, no shade, gray #b7b7b7, Noto Sans 8px ──
+    // ── Gate text ──
     if (n.gate) {
       g.appendChild(txt('🔒 '+n.gate, {
-        x: nx + n.boxW/2,
-        y: ny + n.boxH + 12,
+        x: nx + n.boxW/2, y: ny + n.boxH + 13,
         'font-family':'Noto Sans, Arial, sans-serif',
-        'font-size': GATE_SIZE,
-        'font-style':'italic',
-        fill: GATE_COLOR,
-        'text-anchor':'middle'
+        'font-size': GATE_SIZE, 'font-style':'italic',
+        fill: GATE_COLOR, 'text-anchor':'middle', 'pointer-events':'none'
       }));
     }
 
     // ── SOON tag ──
     if (soon) {
       g.appendChild(txt('SOON', {
-        x: nx + n.boxW - 8, y: ny + 13,
+        x: nx + n.boxW - 9, y: ny + 14,
         'font-family':'Cinzel, serif', 'font-size':9, 'font-weight':700,
-        fill:'#888', 'text-anchor':'end', 'letter-spacing':'0.1em'
+        fill:'#999', 'text-anchor':'end', 'letter-spacing':'0.1em', 'pointer-events':'none'
       }));
     }
 
@@ -516,7 +585,110 @@ function build() {
   });
 }
 
-document.fonts.ready.then(build);
+document.fonts.ready.then(() => {
+  build();
+
+  // ── Pan & Zoom engine ────────────────────────────────────────────────────
+  const wrap   = document.getElementById('wrap');
+  const canvas = document.getElementById('canvas');
+  const svg    = document.getElementById('diagram');
+  let scale = 1, tx = 0, ty = 0;
+  let dragging = false, startX, startY, startTx, startTy;
+
+  function applyTransform() {
+    canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    document.getElementById('zoom-label').textContent = Math.round(scale*100)+'%';
+  }
+
+  function fitToScreen() {
+    const svgW = parseFloat(svg.getAttribute('width'))  || 2000;
+    const svgH = parseFloat(svg.getAttribute('height')) || 6000;
+    const wrapW = wrap.clientWidth;
+    const wrapH = wrap.clientHeight;
+    scale = Math.min(wrapH / svgH, wrapW / svgW, 1);
+    tx = (wrapW - svgW * scale) / 2;
+    ty = 0;
+    applyTransform();
+  }
+
+  window.zoom = (delta) => {
+    const wrapW = wrap.clientWidth, wrapH = wrap.clientHeight;
+    const cx = wrapW / 2, cy = wrapH / 2;
+    const newScale = Math.min(Math.max(scale + delta, 0.05), 4);
+    tx = cx - (cx - tx) * (newScale / scale);
+    ty = cy - (cy - ty) * (newScale / scale);
+    scale = newScale;
+    applyTransform();
+  };
+
+  window.resetView = fitToScreen;
+
+  // Mouse wheel zoom
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const delta = e.deltaY < 0 ? 0.12 : -0.12;
+    const newScale = Math.min(Math.max(scale + delta, 0.05), 4);
+    tx = mx - (mx - tx) * (newScale / scale);
+    ty = my - (my - ty) * (newScale / scale);
+    scale = newScale;
+    applyTransform();
+  }, { passive: false });
+
+  // Touch pinch zoom
+  let lastDist = null;
+  wrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) lastDist = null;
+    else if (e.touches.length === 1) {
+      dragging = true;
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      startTx = tx; startTy = ty;
+    }
+  });
+  wrap.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (lastDist) {
+        const delta = (dist - lastDist) * 0.005;
+        const newScale = Math.min(Math.max(scale + delta, 0.05), 4);
+        const rect = wrap.getBoundingClientRect();
+        const cx = (e.touches[0].clientX + e.touches[1].clientX)/2 - rect.left;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY)/2 - rect.top;
+        tx = cx - (cx - tx) * (newScale / scale);
+        ty = cy - (cy - ty) * (newScale / scale);
+        scale = newScale;
+        applyTransform();
+      }
+      lastDist = dist;
+    } else if (e.touches.length === 1 && dragging) {
+      tx = startTx + e.touches[0].clientX - startX;
+      ty = startTy + e.touches[0].clientY - startY;
+      applyTransform();
+    }
+  }, { passive: false });
+  wrap.addEventListener('touchend', () => { dragging = false; lastDist = null; });
+
+  // Mouse drag pan
+  wrap.addEventListener('mousedown', e => {
+    dragging = true; wrap.classList.add('grabbing');
+    startX = e.clientX; startY = e.clientY; startTx = tx; startTy = ty;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    tx = startTx + e.clientX - startX;
+    ty = startTy + e.clientY - startY;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; wrap.classList.remove('grabbing'); });
+
+  // Initial fit
+  fitToScreen();
+});
 </script>
 </body>
 </html>
