@@ -510,9 +510,7 @@ function build() {
         fill:'transparent', style:'cursor:pointer'
       });
       hitBox.addEventListener('click', () => window.open(n.url, '_blank'));
-      let leaveTimer = null;
       hitBox.addEventListener('mouseenter', () => {
-        if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
         const cx = nx + n.boxW / 2;
         const cy = n.cy;
         svg.appendChild(g);
@@ -521,13 +519,10 @@ function build() {
         g.style.transform = `scale(1.5)`;
         g.style.filter = `drop-shadow(0 0 12px ${t.border}) drop-shadow(0 0 28px ${t.border})`;
       });
-      hitBox.addEventListener('mouseleave', () => {
-        leaveTimer = setTimeout(() => {
-          g.style.transition = 'transform 0.18s ease, filter 0.18s ease';
-          g.style.transform = 'scale(1)';
-          g.style.filter = '';
-          leaveTimer = null;
-        }, 50);
+      g.addEventListener('mouseleave', () => {
+        g.style.transition = 'transform 0.18s ease, filter 0.18s ease';
+        g.style.transform = 'scale(1)';
+        g.style.filter = '';
       });
       g.appendChild(hitBox);
     }
