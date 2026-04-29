@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <title>五 Go — Super Portal Diagram</title>
+<meta property="og:title" content="SPGo Structure Diagram">
+<meta property="og:image" content="https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png">
+<meta property="og:type" content="website">
 <link rel="icon" type="image/png" href="https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Grey+Qo&display=swap" rel="stylesheet">
@@ -36,7 +39,7 @@ svg { display: block; }
   <p class="sub">Navigation structure · read left → right</p>
   <div id="legend">
     <div class="leg"><div class="sw" style="background:#000073;border-color:#00BFFF;"></div>Hub</div>
-    <div class="leg"><div class="sw" style="background:#CBFFC0;border-color:#3A9E26;"></div>Portal</div>
+    <div class="leg"><div class="sw" style="background:#0CDD08;border-color:#09AA05;"></div>Portal</div>
     <div class="leg"><div class="sw" style="background:#E0B0FF;border-color:#8833CC;"></div>External Link</div>
     <div class="leg"><div class="sw" style="background:#00BFFF;border-color:#0090CC;"></div>In-app Tool</div>
     <div class="leg"><div class="sw" style="background:#E8E8FF;border-color:#4455AA;"></div>Screen</div>
@@ -57,7 +60,7 @@ svg { display: block; }
 // ── UNIVERSAL RULES ───────────────────────────────────────────────────────────
 const TYPE = {
   'Hub':           { bg:'#000073', name1:'#ffffff', border:'#00BFFF', shadow:'rgba(0,191,255,0.5)'   },
-  'Portal':        { bg:'#CBFFC0', name1:'#000073', border:'#3A9E26', shadow:'rgba(58,158,38,0.5)'   },
+  'Portal':        { bg:'#0CDD08', name1:'#ffffff', border:'#09AA05', shadow:'rgba(12,221,8,0.5)'    },
   'External Link': { bg:'#E0B0FF', name1:'#9900ff', border:'#8833CC', shadow:'rgba(136,51,204,0.5)'  },
   'In-app Tool':   { bg:'#00BFFF', name1:'#ffffff', border:'#0090CC', shadow:'rgba(0,191,255,0.6)'   },
   'Screen':        { bg:'#E8E8FF', name1:'#0000ff', border:'#4455AA', shadow:'rgba(68,85,170,0.45)'  },
@@ -412,14 +415,27 @@ function build() {
   shadowFilt.appendChild(el('feGaussianBlur', { in:'SourceGraphic', stdDeviation:'6' }));
   defs.appendChild(shadowFilt);
 
-  // Inner highlight gradient (top shimmer to give bevelled feel)
-  // We create one per type colour
+  // Idle glow for linked buttons (soft halo around border)
+  const idleGlow = el('filter', { id:'linkGlow', x:'-18%', y:'-18%', width:'136%', height:'136%' });
+  const ig1 = el('feGaussianBlur', { in:'SourceGraphic', stdDeviation:'4', result:'blur' });
+  const ig2 = el('feComposite', { in:'SourceGraphic', in2:'blur', operator:'over' });
+  idleGlow.appendChild(ig1); idleGlow.appendChild(ig2);
+  defs.appendChild(idleGlow);
+
+  // Hover glow — stronger
+  const hoverGlow = el('filter', { id:'hoverGlow', x:'-25%', y:'-25%', width:'150%', height:'150%' });
+  const hg1 = el('feGaussianBlur', { in:'SourceGraphic', stdDeviation:'10', result:'blur' });
+  const hg2 = el('feComposite', { in:'SourceGraphic', in2:'blur', operator:'over' });
+  hoverGlow.appendChild(hg1); hoverGlow.appendChild(hg2);
+  defs.appendChild(hoverGlow);
+
+  // Inner highlight gradient per type
   Object.entries(TYPE).forEach(([typeName, t]) => {
     const gid = 'shine_' + typeName.replace(/\s+/g,'_');
     const grad = el('linearGradient', { id: gid, x1:'0', y1:'0', x2:'0', y2:'1' });
-    const s1 = el('stop', { offset:'0%',   'stop-color':'rgba(255,255,255,0.18)' });
+    const s1 = el('stop', { offset:'0%',   'stop-color':'rgba(255,255,255,0.22)' });
     const s2 = el('stop', { offset:'45%',  'stop-color':'rgba(255,255,255,0.05)' });
-    const s3 = el('stop', { offset:'100%', 'stop-color':'rgba(0,0,0,0.12)' });
+    const s3 = el('stop', { offset:'100%', 'stop-color':'rgba(0,0,0,0.15)' });
     grad.appendChild(s1); grad.appendChild(s2); grad.appendChild(s3);
     defs.appendChild(grad);
   });
@@ -450,12 +466,25 @@ function build() {
 
     const g = el('g', { opacity: soon ? '0.42' : '1', style: 'cursor:' + (n.url ? 'pointer' : 'default') });
 
+    // ── Ambient glow for linked nodes (always-on subtle ring) ──
+    if (n.url) {
+      g.appendChild(el('rect', {
+        x: nx-4, y: ny-4, width: n.boxW+8, height: n.boxH+8, rx: rx+4,
+        fill: 'none',
+        stroke: t.border,
+        'stroke-width': 3,
+        opacity: '0.45',
+        filter: 'url(#linkGlow)',
+        'pointer-events': 'none'
+      }));
+    }
+
     // ── Drop shadow rect ──
     g.appendChild(el('rect', {
-      x: nx+3, y: ny+6, width: n.boxW, height: n.boxH, rx,
+      x: nx+3, y: ny+7, width: n.boxW, height: n.boxH, rx,
       fill: t.shadow || 'rgba(0,0,0,0.4)',
       filter: 'url(#shadowBlur)',
-      opacity: '0.7'
+      opacity: '0.65'
     }));
 
     // ── Main box ──
@@ -463,7 +492,7 @@ function build() {
       x:nx, y:ny, width:n.boxW, height:n.boxH, rx,
       fill: t.bg,
       stroke: t.border,
-      'stroke-width': 2
+      'stroke-width': n.url ? 2.5 : 1.5
     }));
 
     // ── Top-edge highlight (inner bevel shimmer) ──
@@ -474,7 +503,7 @@ function build() {
       'pointer-events': 'none'
     }));
 
-    // ── Hover interaction (only for nodes with URL) ──
+    // ── Hover interaction (linked nodes: expand glow + lift) ──
     if (n.url) {
       const hitBox = el('rect', {
         x:nx, y:ny, width:n.boxW, height:n.boxH, rx,
@@ -482,11 +511,13 @@ function build() {
       });
       hitBox.addEventListener('click', () => window.open(n.url, '_blank'));
       hitBox.addEventListener('mouseenter', () => {
-        g.style.transform = `translate(0px, -2px)`;
-        g.style.transition = 'transform 0.12s ease';
+        g.style.transform = `translate(0px, -3px)`;
+        g.style.transition = 'transform 0.15s ease';
+        g.style.filter = `drop-shadow(0 0 10px ${t.border}) drop-shadow(0 0 20px ${t.border})`;
       });
       hitBox.addEventListener('mouseleave', () => {
         g.style.transform = '';
+        g.style.filter = '';
       });
       g.appendChild(hitBox);
     }
@@ -532,7 +563,7 @@ function build() {
       const n2span = document.createElementNS(NS, 'tspan');
       n2span.setAttribute('font-family', "'Grey Qo', cursive");
       n2span.setAttribute('font-size', n.name2Size);
-      n2span.setAttribute('font-weight', 600);
+      n2span.setAttribute('font-weight', 400);
       n2span.setAttribute('fill', n.n2color);
       // Align baselines: Grey Qo is taller so shift it down slightly
       n2span.setAttribute('dy', ((n.name2Size - n.name1Size) * 0.22).toFixed(1));
@@ -583,12 +614,25 @@ function build() {
       }));
     }
 
-    // ── Link indicator (bottom-right corner) ──
+    // ── Link indicator: small glowing dot bottom-right for linked nodes ──
     if (n.url) {
-      g.appendChild(txt('↗', {
-        x: nx + n.boxW - 7, y: ny + n.boxH - 7,
-        'font-family':'Arial, sans-serif', 'font-size': Math.max(n.idSize * 0.9, 9),
-        fill:'rgba(255,255,180,0.7)', 'text-anchor':'end', 'pointer-events':'none'
+      const dotR = Math.max(n.idSize * 0.38, 5);
+      g.appendChild(el('circle', {
+        cx: nx + n.boxW - dotR - 6,
+        cy: ny + n.boxH - dotR - 6,
+        r: dotR,
+        fill: t.border,
+        opacity: '0.85',
+        filter: 'url(#linkGlow)',
+        'pointer-events': 'none'
+      }));
+      g.appendChild(el('circle', {
+        cx: nx + n.boxW - dotR - 6,
+        cy: ny + n.boxH - dotR - 6,
+        r: dotR * 0.5,
+        fill: 'white',
+        opacity: '0.7',
+        'pointer-events': 'none'
       }));
     }
 
