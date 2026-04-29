@@ -29,8 +29,8 @@ h1 { color: #CCFF00; font-size: 20px; letter-spacing: 0.2em; text-align: center;
   border-top: 1px solid rgba(100,120,255,0.15);
   border-bottom: 1px solid rgba(100,120,255,0.15); }
 #wrap.grabbing { cursor: grabbing; }
-#canvas { transform-origin: 0 0; will-change: transform; }
-svg { display: block; }
+#canvas { transform-origin: 0 0; will-change: transform; overflow: visible; }
+svg { display: block; overflow: visible; }
 </style>
 </head>
 <body>
@@ -511,12 +511,16 @@ function build() {
       });
       hitBox.addEventListener('click', () => window.open(n.url, '_blank'));
       hitBox.addEventListener('mouseenter', () => {
-        g.style.transform = `translate(0px, -3px)`;
-        g.style.transition = 'transform 0.15s ease';
-        g.style.filter = `drop-shadow(0 0 10px ${t.border}) drop-shadow(0 0 20px ${t.border})`;
+        const cx = nx + n.boxW / 2;
+        const cy = n.cy;
+        g.style.transformOrigin = `${cx}px ${cy}px`;
+        g.style.transform = `scale(1.5)`;
+        g.style.transition = 'transform 0.18s ease, filter 0.18s ease';
+        g.style.filter = `drop-shadow(0 0 12px ${t.border}) drop-shadow(0 0 28px ${t.border})`;
+        g.style.zIndex = '999';
       });
       hitBox.addEventListener('mouseleave', () => {
-        g.style.transform = '';
+        g.style.transform = 'scale(1)';
         g.style.filter = '';
       });
       g.appendChild(hitBox);
