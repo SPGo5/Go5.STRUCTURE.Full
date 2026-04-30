@@ -844,21 +844,58 @@ document.fonts.ready.then(() => {
     magNode = null;
   }
 
+  // ── Hover overlay (normal mode only, linked nodes only) ──
+  const hoverOverlay = document.createElement('div');
+  hoverOverlay.style.cssText = `position:fixed;z-index:9995;opacity:0;pointer-events:none;
+    border-radius:12px;overflow:visible;transition:opacity 0.15s ease;background:transparent;`;
+  document.body.appendChild(hoverOverlay);
+
+  hoverOverlay.addEventListener('mouseleave', () => {
+    hoverOverlay.style.opacity = '0';
+    hoverOverlay.style.pointerEvents = 'none';
+  });
+
   // ── Wire up all nodes ──
   document.querySelectorAll('g[data-node]').forEach(g => {
     const hasUrl = !!g.dataset.url;
 
+    // Normal mode hover — linked only
+    if (hasUrl) {
+      g.addEventListener('mouseenter', () => {
+        if (magMode) return;
+        const bbox = g.getBoundingClientRect();
+        const nodeId = g.getAttribute('data-node');
+        const n = MAP[nodeId];
+        const t = TYPE[n.type] || TYPE['Screen'];
+        const w = bbox.width, h = bbox.height;
+        hoverOverlay.style.width  = w + 'px';
+        hoverOverlay.style.height = h + 'px';
+        hoverOverlay.style.left   = bbox.left + 'px';
+        hoverOverlay.style.top    = bbox.top  + 'px';
+        hoverOverlay.style.transform = 'scale(1.5)';
+        hoverOverlay.style.transformOrigin = 'center center';
+        hoverOverlay.style.boxShadow = `0 0 18px 4px ${t.border}, 0 0 40px 8px ${t.border}`;
+        hoverOverlay.style.pointerEvents = 'auto';
+        hoverOverlay.style.cursor = 'pointer';
+        hoverOverlay.innerHTML = '';
+        hoverOverlay.appendChild(buildMiniSvg(g, w, h));
+        hoverOverlay.style.opacity = '1';
+        hoverOverlay.onclick = () => window.open(g.dataset.url, '_blank');
+      });
+      g.addEventListener('mouseleave', () => {
+        if (magMode) return;
+        // small delay so mouse can move onto the overlay without it vanishing
+        setTimeout(() => { hoverOverlay.style.opacity = '0'; hoverOverlay.style.pointerEvents = 'none'; }, 80);
+      });
+    }
+
     g.addEventListener('click', (e) => {
       e.stopPropagation();
-
       if (magMode) {
-        // Mag mode: toggle open/close, NEVER directly open URL from node click
         if (magOpen && magNode === g) { closeMag(); return; }
         openMag(g);
         return;
       }
-
-      // Normal mode: only linked nodes open URL on click
       if (hasUrl) window.open(g.dataset.url, '_blank');
     });
   });
