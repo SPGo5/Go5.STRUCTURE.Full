@@ -456,85 +456,67 @@ function build() {
     });
   });
 
+  // ── CSS for hover scale — pure CSS, no JS mouse events ──
+  const styleEl = document.createElementNS(NS, 'style');
+  styleEl.textContent = `.linked-node:hover { filter: drop-shadow(0 0 8px var(--hc)); }`;
+  defs.appendChild(styleEl);
+
   // ── Nodes ──
   all.forEach(n => {
     const t    = TYPE[n.type] || TYPE['Screen'];
     const nx   = n.x, ny = n.cy - n.boxH/2;
     const soon = n.status === 'Soon';
-    const rx   = 10; // rounded corners — slightly more for button feel
+    const rx   = 10;
     const shineId = 'shine_' + n.type.replace(/\s+/g,'_');
+    const cx   = nx + n.boxW / 2;
+    const cy   = n.cy;
 
-    const g = el('g', { opacity: soon ? '0.42' : '1', style: 'cursor:' + (n.url ? 'pointer' : 'default') });
+    const g = el('g', { opacity: soon ? '0.42' : '1' });
 
-    // ── Ambient glow for linked nodes (always-on subtle ring) ──
+    if (n.url) {
+      g.setAttribute('class', 'linked-node');
+      g.setAttribute('data-url', n.url);
+      g.setAttribute('style',
+        `cursor:pointer;transform-origin:${cx}px ${cy}px;transition:filter 0.2s ease;--hc:${t.border};`
+      );
+      g.addEventListener('click', () => window.open(n.url, '_blank'));
+    }
+
+    // ── Ambient glow ring for linked nodes ──
     if (n.url) {
       g.appendChild(el('rect', {
         x: nx-4, y: ny-4, width: n.boxW+8, height: n.boxH+8, rx: rx+4,
-        fill: 'none',
-        stroke: t.border,
-        'stroke-width': 3,
-        opacity: '0.45',
-        filter: 'url(#linkGlow)',
-        'pointer-events': 'none'
+        fill: 'none', stroke: t.border, 'stroke-width': 3,
+        opacity: '0.4', filter: 'url(#linkGlow)', 'pointer-events': 'none'
       }));
     }
 
-    // ── Drop shadow rect ──
+    // ── Drop shadow ──
     g.appendChild(el('rect', {
       x: nx+3, y: ny+7, width: n.boxW, height: n.boxH, rx,
-      fill: t.shadow || 'rgba(0,0,0,0.4)',
-      filter: 'url(#shadowBlur)',
-      opacity: '0.65'
+      fill: t.shadow || 'rgba(0,0,0,0.4)', filter: 'url(#shadowBlur)', opacity: '0.65'
     }));
 
     // ── Main box ──
     g.appendChild(el('rect', {
       x:nx, y:ny, width:n.boxW, height:n.boxH, rx,
-      fill: t.bg,
-      stroke: t.border,
-      'stroke-width': n.url ? 2.5 : 1.5
+      fill: t.bg, stroke: t.border, 'stroke-width': n.url ? 2.5 : 1.5
     }));
 
-    // ── Top-edge highlight (inner bevel shimmer) ──
+    // ── Bevel shimmer ──
     g.appendChild(el('rect', {
       x:nx+1, y:ny+1, width:n.boxW-2, height:n.boxH-2, rx: rx-1,
-      fill: `url(#${shineId})`,
-      opacity: '1',
-      'pointer-events': 'none'
+      fill: `url(#${shineId})`, 'pointer-events': 'none'
     }));
 
-    // ── Hover interaction (linked nodes: expand glow + lift) ──
-    if (n.url) {
-      const hitBox = el('rect', {
-        x:nx, y:ny, width:n.boxW, height:n.boxH, rx,
-        fill:'transparent', style:'cursor:pointer'
-      });
-      hitBox.addEventListener('click', () => window.open(n.url, '_blank'));
-      hitBox.addEventListener('mouseenter', () => {
-        const cx = nx + n.boxW / 2;
-        const cy = n.cy;
-        svg.appendChild(g);
-        g.style.transformOrigin = `${cx}px ${cy}px`;
-        g.style.transition = 'transform 0.18s ease, filter 0.18s ease';
-        g.style.transform = `scale(1.5)`;
-        g.style.filter = `drop-shadow(0 0 12px ${t.border}) drop-shadow(0 0 28px ${t.border})`;
-      });
-      g.addEventListener('mouseleave', () => {
-        g.style.transition = 'transform 0.18s ease, filter 0.18s ease';
-        g.style.transform = 'scale(1)';
-        g.style.filter = '';
-      });
-      g.appendChild(hitBox);
-    }
-
-    // ── ID text (top-left, Cinzel, gray #b7b7b7) ──
+    // ── ID ──
     g.appendChild(txt(n.id, {
       x: nx+9, y: ny + n.idSize + 6,
       'font-family':'Cinzel, serif', 'font-size': n.idSize,
       fill: ID_COLOR, 'text-anchor':'start', 'pointer-events':'none'
     }));
 
-    // ── Name block: Emoji + Name1 + Name2 ALL ON THE SAME LINE ──
+    // ── Name 1 + Name 2 inline ──
     const n1lineH   = n.name1Size * 1.3;
     const n1startY  = ny + n.idSize + 12 + n.name1Size;
     const name1text = (n.emoji ? n.emoji+' ' : '') + n.name1;
@@ -552,10 +534,8 @@ function build() {
       g.appendChild(lt);
     }
 
-    // Last line: Name1 + Name2 inline
     const lastLineY   = n1startY + (n1lines.length - 1) * n1lineH;
     const lastLineTxt = el('text', { x: nx+9, y: lastLineY, 'text-anchor':'start', 'pointer-events':'none' });
-
     const n1span = document.createElementNS(NS, 'tspan');
     n1span.setAttribute('font-family', 'Cinzel, serif');
     n1span.setAttribute('font-size', n.name1Size);
@@ -570,7 +550,6 @@ function build() {
       n2span.setAttribute('font-size', n.name2Size);
       n2span.setAttribute('font-weight', 400);
       n2span.setAttribute('fill', n.n2color);
-      // Align baselines: Grey Qo is taller so shift it down slightly
       n2span.setAttribute('dy', ((n.name2Size - n.name1Size) * 0.22).toFixed(1));
       n2span.textContent = ' ' + n.name2;
       lastLineTxt.appendChild(n2span);
@@ -587,15 +566,12 @@ function build() {
       const slotW      = imgH;
       const totalImgW  = n.imgs.length * slotW + (n.imgs.length-1) * 6;
       const imgStartX  = nx + (n.boxW - totalImgW) / 2;
-
       n.imgs.forEach((src, i) => {
         g.appendChild(el('image', {
-          href: src,
-          x: imgStartX + i*(slotW+6), y: imgAreaTop,
+          href: src, x: imgStartX + i*(slotW+6), y: imgAreaTop,
           width: slotW, height: imgH,
           preserveAspectRatio: 'xMidYMid meet',
-          filter: 'url(#glow)',
-          'pointer-events': 'none'
+          filter: 'url(#glow)', 'pointer-events': 'none'
         }));
       });
     }
@@ -619,25 +595,17 @@ function build() {
       }));
     }
 
-    // ── Link indicator: small glowing dot bottom-right for linked nodes ──
+    // ── Link dot indicator ──
     if (n.url) {
       const dotR = Math.max(n.idSize * 0.38, 5);
       g.appendChild(el('circle', {
-        cx: nx + n.boxW - dotR - 6,
-        cy: ny + n.boxH - dotR - 6,
-        r: dotR,
-        fill: t.border,
-        opacity: '0.85',
-        filter: 'url(#linkGlow)',
-        'pointer-events': 'none'
+        cx: nx + n.boxW - dotR - 6, cy: ny + n.boxH - dotR - 6,
+        r: dotR, fill: t.border, opacity: '0.85',
+        filter: 'url(#linkGlow)', 'pointer-events': 'none'
       }));
       g.appendChild(el('circle', {
-        cx: nx + n.boxW - dotR - 6,
-        cy: ny + n.boxH - dotR - 6,
-        r: dotR * 0.5,
-        fill: 'white',
-        opacity: '0.7',
-        'pointer-events': 'none'
+        cx: nx + n.boxW - dotR - 6, cy: ny + n.boxH - dotR - 6,
+        r: dotR * 0.5, fill: 'white', opacity: '0.7', 'pointer-events': 'none'
       }));
     }
 
@@ -748,6 +716,78 @@ document.fonts.ready.then(() => {
 
   // Initial fit
   fitToScreen();
+
+  // ── Hover overlay: HTML div above everything, no SVG z-order issues ──
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed; pointer-events:none; z-index:9999;
+    transition: opacity 0.15s ease, transform 0.18s ease;
+    opacity:0; transform-origin: center center;
+    border-radius: 12px; overflow: hidden;
+  `;
+  document.body.appendChild(overlay);
+
+  let overlayTarget = null;
+
+  document.querySelectorAll('.linked-node').forEach(g => {
+    g.addEventListener('mouseenter', function(e) {
+      overlayTarget = g;
+      showOverlay(g, e);
+    });
+    g.addEventListener('mouseleave', function() {
+      overlayTarget = null;
+      overlay.style.opacity = '0';
+      overlay.style.transform = 'scale(1)';
+    });
+    g.addEventListener('click', function() {
+      const url = g.dataset.url;
+      if (url) window.open(url, '_blank');
+    });
+  });
+
+  function showOverlay(g, e) {
+    // Get the bounding rect of the g element in screen space
+    const bbox = g.getBoundingClientRect();
+    const w = bbox.width;
+    const h = bbox.height;
+    const cx = bbox.left + w/2;
+    const cy = bbox.top  + h/2;
+    const scaledW = w * 1.5;
+    const scaledH = h * 1.5;
+
+    overlay.style.width  = w + 'px';
+    overlay.style.height = h + 'px';
+    overlay.style.left   = (cx - w/2) + 'px';
+    overlay.style.top    = (cy - h/2) + 'px';
+    overlay.style.transformOrigin = 'center center';
+    overlay.style.transform = 'scale(1.5)';
+    overlay.style.opacity = '1';
+
+    // Clone the SVG node visually using a mini SVG
+    const svgEl = document.getElementById('diagram');
+    const nsBBox = g.getBBox();
+
+    const miniSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    miniSvg.setAttribute('width', w);
+    miniSvg.setAttribute('height', h);
+    miniSvg.setAttribute('viewBox', `${nsBBox.x} ${nsBBox.y} ${nsBBox.width} ${nsBBox.height}`);
+    miniSvg.style.display = 'block';
+    miniSvg.style.overflow = 'visible';
+
+    // Copy defs (filters/gradients)
+    const origDefs = svgEl.querySelector('defs');
+    if (origDefs) miniSvg.appendChild(origDefs.cloneNode(true));
+
+    // Clone the group
+    miniSvg.appendChild(g.cloneNode(true));
+
+    overlay.innerHTML = '';
+    overlay.appendChild(miniSvg);
+
+    // Get border color for glow
+    const borderColor = g.style.getPropertyValue('--hc') || '#ffffff';
+    overlay.style.boxShadow = `0 0 18px 4px ${borderColor}, 0 0 40px 8px ${borderColor}`;
+  }
 });
 </script>
 </body>
