@@ -484,7 +484,7 @@ function build() {
     const cx   = nx + n.boxW / 2;
     const cy   = n.cy;
 
-    const g = el('g', { opacity: soon ? '0.42' : '1' });
+    const g = el('g', { opacity: soon ? '0.42' : '1', 'data-node': n.id });
 
     if (n.url) {
       g.setAttribute('class', 'linked-node');
@@ -740,20 +740,19 @@ document.fonts.ready.then(() => {
     lbl.textContent = magMode ? 'On' : 'Off';
   };
 
-  // ── Blur overlay (magnifier mode background blur) ──
+  // ── Blur overlay (magnifier background blur) ──
   const blurOverlay = document.createElement('div');
   blurOverlay.style.cssText = `position:fixed;inset:0;z-index:9990;backdrop-filter:blur(6px);
     background:rgba(2,3,24,0.55);pointer-events:none;opacity:0;transition:opacity 0.2s ease;`;
   document.body.appendChild(blurOverlay);
 
-  // ── Main hover overlay ──
+  // ── Main hover overlay ── transparent background, just the SVG content
   const overlay = document.createElement('div');
   overlay.style.cssText = `position:fixed;pointer-events:none;z-index:9999;
-    opacity:0;transition:opacity 0.18s ease, transform 0.18s ease;
-    transform-origin:center center;transform:scale(1);`;
+    opacity:0;transition:opacity 0.18s ease;background:transparent;`;
   document.body.appendChild(overlay);
 
-  // ── "Click to open" label (magnifier mode) ──
+  // ── "Click to open" label ──
   const clickLabel = document.createElement('div');
   clickLabel.textContent = '↗ Click to open';
   clickLabel.style.cssText = `position:fixed;z-index:10000;pointer-events:none;opacity:0;
@@ -765,21 +764,15 @@ document.fonts.ready.then(() => {
   function buildMiniSvg(g, dispW, dispH) {
     const svgEl = document.getElementById('diagram');
     const nsBBox = g.getBBox();
-    // Add padding to viewBox so rounded corners & glow ring aren't clipped
-    const PAD = 20;
-    const vx = nsBBox.x - PAD, vy = nsBBox.y - PAD;
-    const vw = nsBBox.width + PAD*2, vh = nsBBox.height + PAD*2;
-
+    const PAD = 18;
     const miniSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
     miniSvg.setAttribute('width',  dispW);
     miniSvg.setAttribute('height', dispH);
-    miniSvg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
-    miniSvg.style.cssText = 'display:block;overflow:visible;';
-
+    miniSvg.setAttribute('viewBox', `${nsBBox.x-PAD} ${nsBBox.y-PAD} ${nsBBox.width+PAD*2} ${nsBBox.height+PAD*2}`);
+    miniSvg.style.cssText = 'display:block;overflow:visible;background:transparent;';
     const origDefs = svgEl.querySelector('defs');
     if (origDefs) miniSvg.appendChild(origDefs.cloneNode(true));
     const clone = g.cloneNode(true);
-    // Remove hover CSS class from clone so it doesn't self-trigger
     clone.classList.remove('linked-node');
     clone.removeAttribute('style');
     miniSvg.appendChild(clone);
@@ -787,40 +780,38 @@ document.fonts.ready.then(() => {
   }
 
   function showOverlay(g) {
-    const bbox   = g.getBoundingClientRect();
-    const borderColor = g.style.getPropertyValue('--hc') || '#ffffff';
-    const hasUrl  = !!g.dataset.url;
+    const bbox = g.getBoundingClientRect();
+    const hasUrl = !!g.dataset.url;
+    const borderColor = g.style.getPropertyValue('--hc') || 'rgba(255,255,255,0.6)';
 
     if (magMode) {
-      // Magnifier: 1/3 of screen, centered, background blurred
+      // Magnifier: 1/3 screen, centered, ALL nodes (linked or not)
       const magW = Math.round(window.innerWidth  / 3);
       const magH = Math.round(window.innerHeight / 3);
       const magL = Math.round((window.innerWidth  - magW) / 2);
-      const magT = Math.round((window.innerHeight - magH) / 2) - 30;
+      const magT = Math.round((window.innerHeight - magH) / 2) - 40;
 
       overlay.style.width  = magW + 'px';
       overlay.style.height = magH + 'px';
       overlay.style.left   = magL + 'px';
       overlay.style.top    = magT + 'px';
-      overlay.style.transform = 'scale(1)';
+      overlay.style.transform = 'none';
       overlay.style.borderRadius = '16px';
-      overlay.style.boxShadow = `0 0 24px 6px ${borderColor}, 0 0 60px 12px ${borderColor}`;
       overlay.style.overflow = 'hidden';
+      overlay.style.boxShadow = `0 0 30px 8px ${borderColor}`;
+      overlay.style.background = 'transparent';
+      overlay.style.pointerEvents = hasUrl ? 'auto' : 'none';
+      overlay.style.cursor = hasUrl ? 'pointer' : 'default';
       overlay.innerHTML = '';
       overlay.appendChild(buildMiniSvg(g, magW, magH));
       overlay.style.opacity = '1';
-      overlay.style.pointerEvents = hasUrl ? 'auto' : 'none';
-      overlay.style.cursor = hasUrl ? 'pointer' : 'default';
-      if (hasUrl) {
-        overlay.onclick = () => window.open(g.dataset.url, '_blank');
-      } else {
-        overlay.onclick = null;
-      }
+      overlay.onclick = hasUrl ? () => window.open(g.dataset.url, '_blank') : null;
 
       blurOverlay.style.opacity = '1';
+      blurOverlay.style.pointerEvents = 'none';
 
       if (hasUrl) {
-        const lbY = magT + magH + 10;
+        const lbY = magT + magH + 12;
         clickLabel.style.left  = magL + 'px';
         clickLabel.style.top   = lbY  + 'px';
         clickLabel.style.width = magW + 'px';
@@ -828,7 +819,7 @@ document.fonts.ready.then(() => {
       }
 
     } else {
-      // Normal mode: 1.5× scale from button position
+      // Normal mode: 1.5× popup above the button, all nodes
       const w = bbox.width, h = bbox.height;
       const cx = bbox.left + w/2, cy = bbox.top + h/2;
       overlay.style.width   = w + 'px';
@@ -838,35 +829,32 @@ document.fonts.ready.then(() => {
       overlay.style.transform = 'scale(1.5)';
       overlay.style.transformOrigin = 'center center';
       overlay.style.borderRadius = '12px';
-      overlay.style.boxShadow = `0 0 18px 4px ${borderColor}, 0 0 40px 8px ${borderColor}`;
       overlay.style.overflow = 'hidden';
+      overlay.style.boxShadow = `0 0 18px 4px ${borderColor}, 0 0 40px 8px ${borderColor}`;
+      overlay.style.background = 'transparent';
+      overlay.style.pointerEvents = hasUrl ? 'auto' : 'none';
+      overlay.style.cursor = hasUrl ? 'pointer' : 'default';
       overlay.innerHTML = '';
       overlay.appendChild(buildMiniSvg(g, w, h));
       overlay.style.opacity = '1';
-      overlay.style.pointerEvents = hasUrl ? 'auto' : 'none';
-      overlay.style.cursor = hasUrl ? 'pointer' : 'default';
-      if (hasUrl) {
-        overlay.onclick = () => window.open(g.dataset.url, '_blank');
-      } else {
-        overlay.onclick = null;
-      }
+      overlay.onclick = hasUrl ? () => window.open(g.dataset.url, '_blank') : null;
+      blurOverlay.style.opacity = '0';
     }
   }
 
   function hideOverlay() {
     overlay.style.opacity = '0';
-    overlay.style.transform = 'scale(1)';
     overlay.style.pointerEvents = 'none';
     blurOverlay.style.opacity = '0';
     clickLabel.style.opacity = '0';
   }
 
-  document.querySelectorAll('.linked-node').forEach(g => {
+  // Attach to ALL nodes, not just linked ones
+  document.querySelectorAll('g[data-node]').forEach(g => {
     g.addEventListener('mouseenter', () => showOverlay(g));
     g.addEventListener('mouseleave', hideOverlay);
   });
 
-  // Hide overlay when panning/zooming
   wrap.addEventListener('mousedown', hideOverlay);
   wrap.addEventListener('wheel', hideOverlay, {passive:true});
 });
