@@ -23,6 +23,15 @@ h1 { color: #CCFF00; font-size: 20px; letter-spacing: 0.2em; text-align: center;
   font-family: 'Cinzel', serif; font-size: 12px; padding: 4px 14px; border-radius: 20px; cursor: pointer; }
 #controls button:hover { background: rgba(255,255,255,0.16); }
 #zoom-label { color: rgba(255,255,255,0.4); font-size: 11px; min-width: 42px; text-align:center; }
+#mag-btn { display:flex; flex-direction:column; align-items:center; cursor:pointer;
+  padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08); transition: all 0.2s ease; min-width: 44px; }
+#mag-btn:hover { background: rgba(255,255,100,0.15); }
+#mag-btn.active { background: rgba(255,220,0,0.2); border-color: #FFE000;
+  box-shadow: 0 0 10px #FFE000, 0 0 20px #FFE000; }
+#mag-icon { font-size: 16px; line-height:1; }
+#mag-label { font-size: 9px; font-family: 'Cinzel', serif; color: rgba(255,255,255,0.4); }
+#mag-btn.active #mag-label { color: #FFE000; text-shadow: 0 0 8px #FFE000; }
 #wrap { position: relative; overflow: hidden; width: 100%;
   height: calc(100vh - 120px); cursor: grab; user-select: none;
   background: #020318;
@@ -50,6 +59,10 @@ svg { display: block; overflow: visible; }
     <span id="zoom-label">100%</span>
     <button onclick="zoom(0.15)">＋</button>
     <button onclick="resetView()">⊡ Fit</button>
+    <div id="mag-btn" onclick="toggleMag()" title="Magnifier mode">
+      <span id="mag-icon">🔍</span>
+      <span id="mag-label">Off</span>
+    </div>
   </div>
 </div>
 <div id="wrap">
@@ -717,77 +730,145 @@ document.fonts.ready.then(() => {
   // Initial fit
   fitToScreen();
 
-  // ── Hover overlay: HTML div above everything, no SVG z-order issues ──
+  // ── Magnifier mode state ──
+  let magMode = false;
+  window.toggleMag = function() {
+    magMode = !magMode;
+    const btn = document.getElementById('mag-btn');
+    const lbl = document.getElementById('mag-label');
+    btn.classList.toggle('active', magMode);
+    lbl.textContent = magMode ? 'On' : 'Off';
+  };
+
+  // ── Blur overlay (magnifier mode background blur) ──
+  const blurOverlay = document.createElement('div');
+  blurOverlay.style.cssText = `position:fixed;inset:0;z-index:9990;backdrop-filter:blur(6px);
+    background:rgba(2,3,24,0.55);pointer-events:none;opacity:0;transition:opacity 0.2s ease;`;
+  document.body.appendChild(blurOverlay);
+
+  // ── Main hover overlay ──
   const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position:fixed; pointer-events:none; z-index:9999;
-    transition: opacity 0.15s ease, transform 0.18s ease;
-    opacity:0; transform-origin: center center;
-    border-radius: 12px; overflow: hidden;
-  `;
+  overlay.style.cssText = `position:fixed;pointer-events:none;z-index:9999;
+    opacity:0;transition:opacity 0.18s ease, transform 0.18s ease;
+    transform-origin:center center;transform:scale(1);`;
   document.body.appendChild(overlay);
 
-  let overlayTarget = null;
+  // ── "Click to open" label (magnifier mode) ──
+  const clickLabel = document.createElement('div');
+  clickLabel.textContent = '↗ Click to open';
+  clickLabel.style.cssText = `position:fixed;z-index:10000;pointer-events:none;opacity:0;
+    color:#FFE000;font-family:'Cinzel',serif;font-size:13px;font-weight:600;
+    text-shadow:0 0 10px #FFE000,0 0 20px #FFE000;text-align:center;
+    transition:opacity 0.18s ease;`;
+  document.body.appendChild(clickLabel);
 
-  document.querySelectorAll('.linked-node').forEach(g => {
-    g.addEventListener('mouseenter', function(e) {
-      overlayTarget = g;
-      showOverlay(g, e);
-    });
-    g.addEventListener('mouseleave', function() {
-      overlayTarget = null;
-      overlay.style.opacity = '0';
-      overlay.style.transform = 'scale(1)';
-    });
-    g.addEventListener('click', function() {
-      const url = g.dataset.url;
-      if (url) window.open(url, '_blank');
-    });
-  });
-
-  function showOverlay(g, e) {
-    // Get the bounding rect of the g element in screen space
-    const bbox = g.getBoundingClientRect();
-    const w = bbox.width;
-    const h = bbox.height;
-    const cx = bbox.left + w/2;
-    const cy = bbox.top  + h/2;
-    const scaledW = w * 1.5;
-    const scaledH = h * 1.5;
-
-    overlay.style.width  = w + 'px';
-    overlay.style.height = h + 'px';
-    overlay.style.left   = (cx - w/2) + 'px';
-    overlay.style.top    = (cy - h/2) + 'px';
-    overlay.style.transformOrigin = 'center center';
-    overlay.style.transform = 'scale(1.5)';
-    overlay.style.opacity = '1';
-
-    // Clone the SVG node visually using a mini SVG
+  function buildMiniSvg(g, dispW, dispH) {
     const svgEl = document.getElementById('diagram');
     const nsBBox = g.getBBox();
+    // Add padding to viewBox so rounded corners & glow ring aren't clipped
+    const PAD = 20;
+    const vx = nsBBox.x - PAD, vy = nsBBox.y - PAD;
+    const vw = nsBBox.width + PAD*2, vh = nsBBox.height + PAD*2;
 
     const miniSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-    miniSvg.setAttribute('width', w);
-    miniSvg.setAttribute('height', h);
-    miniSvg.setAttribute('viewBox', `${nsBBox.x} ${nsBBox.y} ${nsBBox.width} ${nsBBox.height}`);
-    miniSvg.style.display = 'block';
-    miniSvg.style.overflow = 'visible';
+    miniSvg.setAttribute('width',  dispW);
+    miniSvg.setAttribute('height', dispH);
+    miniSvg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
+    miniSvg.style.cssText = 'display:block;overflow:visible;';
 
-    // Copy defs (filters/gradients)
     const origDefs = svgEl.querySelector('defs');
     if (origDefs) miniSvg.appendChild(origDefs.cloneNode(true));
-
-    // Clone the group
-    miniSvg.appendChild(g.cloneNode(true));
-
-    overlay.innerHTML = '';
-    overlay.appendChild(miniSvg);
-
-    // Get border color for glow
-    const borderColor = g.style.getPropertyValue('--hc') || '#ffffff';
-    overlay.style.boxShadow = `0 0 18px 4px ${borderColor}, 0 0 40px 8px ${borderColor}`;
+    const clone = g.cloneNode(true);
+    // Remove hover CSS class from clone so it doesn't self-trigger
+    clone.classList.remove('linked-node');
+    clone.removeAttribute('style');
+    miniSvg.appendChild(clone);
+    return miniSvg;
   }
+
+  function showOverlay(g) {
+    const bbox   = g.getBoundingClientRect();
+    const borderColor = g.style.getPropertyValue('--hc') || '#ffffff';
+    const hasUrl  = !!g.dataset.url;
+
+    if (magMode) {
+      // Magnifier: 1/3 of screen, centered, background blurred
+      const magW = Math.round(window.innerWidth  / 3);
+      const magH = Math.round(window.innerHeight / 3);
+      const magL = Math.round((window.innerWidth  - magW) / 2);
+      const magT = Math.round((window.innerHeight - magH) / 2) - 30;
+
+      overlay.style.width  = magW + 'px';
+      overlay.style.height = magH + 'px';
+      overlay.style.left   = magL + 'px';
+      overlay.style.top    = magT + 'px';
+      overlay.style.transform = 'scale(1)';
+      overlay.style.borderRadius = '16px';
+      overlay.style.boxShadow = `0 0 24px 6px ${borderColor}, 0 0 60px 12px ${borderColor}`;
+      overlay.style.overflow = 'hidden';
+      overlay.innerHTML = '';
+      overlay.appendChild(buildMiniSvg(g, magW, magH));
+      overlay.style.opacity = '1';
+      overlay.style.pointerEvents = hasUrl ? 'auto' : 'none';
+      overlay.style.cursor = hasUrl ? 'pointer' : 'default';
+      if (hasUrl) {
+        overlay.onclick = () => window.open(g.dataset.url, '_blank');
+      } else {
+        overlay.onclick = null;
+      }
+
+      blurOverlay.style.opacity = '1';
+
+      if (hasUrl) {
+        const lbY = magT + magH + 10;
+        clickLabel.style.left  = magL + 'px';
+        clickLabel.style.top   = lbY  + 'px';
+        clickLabel.style.width = magW + 'px';
+        clickLabel.style.opacity = '1';
+      }
+
+    } else {
+      // Normal mode: 1.5× scale from button position
+      const w = bbox.width, h = bbox.height;
+      const cx = bbox.left + w/2, cy = bbox.top + h/2;
+      overlay.style.width   = w + 'px';
+      overlay.style.height  = h + 'px';
+      overlay.style.left    = (cx - w/2) + 'px';
+      overlay.style.top     = (cy - h/2) + 'px';
+      overlay.style.transform = 'scale(1.5)';
+      overlay.style.transformOrigin = 'center center';
+      overlay.style.borderRadius = '12px';
+      overlay.style.boxShadow = `0 0 18px 4px ${borderColor}, 0 0 40px 8px ${borderColor}`;
+      overlay.style.overflow = 'hidden';
+      overlay.innerHTML = '';
+      overlay.appendChild(buildMiniSvg(g, w, h));
+      overlay.style.opacity = '1';
+      overlay.style.pointerEvents = hasUrl ? 'auto' : 'none';
+      overlay.style.cursor = hasUrl ? 'pointer' : 'default';
+      if (hasUrl) {
+        overlay.onclick = () => window.open(g.dataset.url, '_blank');
+      } else {
+        overlay.onclick = null;
+      }
+    }
+  }
+
+  function hideOverlay() {
+    overlay.style.opacity = '0';
+    overlay.style.transform = 'scale(1)';
+    overlay.style.pointerEvents = 'none';
+    blurOverlay.style.opacity = '0';
+    clickLabel.style.opacity = '0';
+  }
+
+  document.querySelectorAll('.linked-node').forEach(g => {
+    g.addEventListener('mouseenter', () => showOverlay(g));
+    g.addEventListener('mouseleave', hideOverlay);
+  });
+
+  // Hide overlay when panning/zooming
+  wrap.addEventListener('mousedown', hideOverlay);
+  wrap.addEventListener('wheel', hideOverlay, {passive:true});
 });
 </script>
 </body>
