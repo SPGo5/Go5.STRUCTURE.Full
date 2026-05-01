@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>五 Go — Super Portal Diagram</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SPGo Structure</title>
 <meta property="og:title" content="SPGo Structure Diagram">
 <meta property="og:image" content="https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png">
 <meta property="og:type" content="website">
@@ -59,11 +60,34 @@ h1 { color: #CCFF00; font-size: 20px; letter-spacing: 0.2em; text-align: center;
 #wrap.grabbing { cursor: grabbing; }
 #canvas { transform-origin: 0 0; will-change: transform; overflow: visible; }
 svg { display: block; overflow: visible; }
+
+/* ── Collapse button ── */
+#collapse-btn { display:none; width:100%; background:none; border:none;
+  color:rgba(255,255,255,0.45); font-size:16px; cursor:pointer; padding:2px 0 4px;
+  text-align:center; font-family:'Cinzel',serif; }
+#collapsible { overflow:hidden; transition:max-height 0.3s ease; max-height:200px; }
+
+/* ── Mobile ── */
+@media (max-width:768px) {
+  #collapse-btn { display:block; }
+  h1 { font-size: 15px; }
+  .sub { font-size: 11px; }
+  .leg { font-size: 13px; }
+  .sw { width: 20px; height: 13px; }
+  #controls button { font-size: 15px; padding: 6px 16px; }
+  #zoom-label { font-size: 15px; }
+  #mag-icon { font-size: 17px; }
+  #mag-label { font-size: 15px; }
+  #controls { gap: 10px; flex-wrap: wrap; }
+  #wrap { height: calc(100vh - 56px); }
+}
 </style>
 </head>
 <body>
 <div id="header">
-  <h1>五 Go — Super Portal</h1>
+  <h1>SPGo Structure</h1>
+  <button id="collapse-btn" onclick="toggleHeader()">⌃ Hide</button>
+  <div id="collapsible">
   <p class="sub">Navigation structure · read left → right</p>
   <div id="legend">
     <div class="leg"><div class="sw" style="background:#000073;border-color:#00BFFF;"></div>Hub</div>
@@ -82,6 +106,7 @@ svg { display: block; overflow: visible; }
       <span id="mag-icon">🔍</span>
       <span id="mag-label">Off</span>
     </div>
+  </div>
   </div>
 </div>
 <div id="mag-modal-backdrop">
@@ -703,6 +728,7 @@ document.fonts.ready.then(() => {
       startTx = tx; startTy = ty;
     }
   });
+  let rafPending = false;
   wrap.addEventListener('touchmove', e => {
     e.preventDefault();
     if (e.touches.length === 2) {
@@ -718,16 +744,20 @@ document.fonts.ready.then(() => {
         tx = cx - (cx - tx) * (newScale / scale);
         ty = cy - (cy - ty) * (newScale / scale);
         scale = newScale;
-        applyTransform();
+        if (!rafPending) { rafPending = true; requestAnimationFrame(() => { applyTransform(); rafPending = false; }); }
       }
       lastDist = dist;
     } else if (e.touches.length === 1 && dragging) {
       tx = startTx + e.touches[0].clientX - startX;
       ty = startTy + e.touches[0].clientY - startY;
-      applyTransform();
+      if (!rafPending) { rafPending = true; requestAnimationFrame(() => { applyTransform(); rafPending = false; }); }
     }
   }, { passive: false });
-  wrap.addEventListener('touchend', () => { dragging = false; lastDist = null; });
+  wrap.addEventListener('touchend', () => {
+    dragging = false; lastDist = null;
+    // Hide any hover overlay on touch end (fixes rogue floating overlay on mobile)
+    if (hoverOverlay) { hoverOverlay.style.opacity = '0'; hoverOverlay.style.pointerEvents = 'none'; }
+  });
 
   // Mouse drag pan
   wrap.addEventListener('mousedown', e => {
@@ -744,6 +774,30 @@ document.fonts.ready.then(() => {
 
   // Initial fit
   fitToScreen();
+
+  // ── Collapsible header (mobile) ──
+  let headerOpen = true;
+  window.toggleHeader = function() {
+    headerOpen = !headerOpen;
+    const col = document.getElementById('collapsible');
+    const btn = document.getElementById('collapse-btn');
+    col.style.maxHeight = headerOpen ? '200px' : '0';
+    btn.textContent = headerOpen ? '⌃ Hide' : '⌄ Show';
+    // Recalc wrap height after transition
+    setTimeout(() => {
+      const hh = document.getElementById('header').offsetHeight;
+      document.getElementById('wrap').style.height = (window.innerHeight - hh) + 'px';
+      if (!headerOpen) fitToScreen();
+    }, 320);
+  };
+
+  // ── Fix wrap height dynamically ──
+  function recalcWrap() {
+    const hh = document.getElementById('header').offsetHeight;
+    document.getElementById('wrap').style.height = (window.innerHeight - hh) + 'px';
+  }
+  window.addEventListener('resize', () => { recalcWrap(); fitToScreen(); });
+  recalcWrap();
 
   // ── Magnifier mode ──
   let magMode = false;
