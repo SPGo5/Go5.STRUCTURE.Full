@@ -10,9 +10,9 @@
 <link rel="icon" type="image/png" href="https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png">
 <link rel="apple-touch-icon" href="https://i.postimg.cc/kXPFJh6w/Bussoge-twin.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="SPGo Structure">
+<meta name="apple-mobile-web-app-title" content="SPGo 🧩 (full)">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest_full.json">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Grey+Qo&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -92,9 +92,6 @@ svg { display: block; overflow: visible; }
   <h1>SPGo Structure</h1>
   <button id="collapse-btn" onclick="toggleHeader()">⌃ Hide</button>
   <div id="collapsible">
-  <p class="sub">Navigation structure · read left → right</p>
-  <div id="legend">
-    <div class="leg"><div class="sw" style="background:#000073;border-color:#00BFFF;"></div>Hub</div>
     <div class="leg"><div class="sw" style="background:#0CDD08;border-color:#09AA05;"></div>Portal</div>
     <div class="leg"><div class="sw" style="background:#E0B0FF;border-color:#8833CC;"></div>External Link</div>
     <div class="leg"><div class="sw" style="background:#00BFFF;border-color:#0090CC;"></div>In-app Tool</div>
@@ -455,6 +452,37 @@ function wrapText(text, maxW, fontSize) {
 }
 
 // ── Build SVG ─────────────────────────────────────────────────────────────────
+
+  // ── Draw legend inside SVG ──
+  function drawLegend(svg, NS, el, txt) {
+    var items = [
+      {label:'Hub',           bg:'#000073', border:'#00BFFF'},
+      {label:'Portal',        bg:'#0CDD08', border:'#09AA05'},
+      {label:'External Link', bg:'#E0B0FF', border:'#8833CC'},
+      {label:'In-app Tool',   bg:'#00BFFF', border:'#0090CC'},
+      {label:'Screen',        bg:'#E8E8FF', border:'#4455AA'},
+      {label:'Soon',          bg:'#888888', border:'#555555'},
+    ];
+    var lx = 20, ly = 20, sw = 28, sh = 16, gap = 6, rowH = 26;
+    var totalH = items.length * rowH + gap * 2;
+    var totalW = 160;
+    // Background
+    var bg = el('rect', {x:lx-8, y:ly-8, width:totalW, height:totalH,
+      rx:8, fill:'rgba(4,4,42,0.85)', stroke:'rgba(255,255,255,0.12)', 'stroke-width':1});
+    svg.appendChild(bg);
+    items.forEach(function(item, i) {
+      var iy = ly + i * rowH;
+      var swatch = el('rect', {x:lx, y:iy, width:sw, height:sh, rx:3,
+        fill:item.bg, stroke:item.border, 'stroke-width':1.5,
+        opacity: item.label==='Soon' ? '0.4' : '1'});
+      svg.appendChild(swatch);
+      var label = txt(item.label, {x:lx+sw+8, y:iy+sh-3,
+        'font-family':'Cinzel,serif', 'font-size':11, fill:'rgba(255,255,255,0.6)',
+        'pointer-events':'none'});
+      svg.appendChild(label);
+    });
+  }
+
 function build() {
   assignPos(MAP['B0'], PAD_Y, 0);
   const totalW = computeColX();
@@ -997,34 +1025,38 @@ document.fonts.ready.then(() => {
     });
   });
 
+
+  window.exportPNG = function() {
+    var svgEl = document.getElementById('diagram');
+    var svgW = parseFloat(svgEl.getAttribute('width'));
+    var svgH = parseFloat(svgEl.getAttribute('height'));
+    var btn = document.getElementById('export-btn');
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    // Serialize SVG
+    var str = new XMLSerializer().serializeToString(svgEl);
+    if (str.indexOf('xmlns=') === -1) str = str.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    // Embed font-face so text renders correctly in exported SVG
+    var fontStyle = '<defs><style>'
+      + '@import url(https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Grey+Qo);'
+      + 'text,tspan{font-display:swap;}'
+      + '</style></defs>';
+    str = str.replace(/(<svg[^>]*>)/, '$1<rect width="' + svgW + '" height="' + svgH + '" fill="#04042A"/>' + fontStyle);
+    var blob = new Blob([str], {type: 'image/svg+xml;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'SPGo-Structure-Full.svg';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    btn.textContent = 'Save as SVG';
+    btn.disabled = false;
+  };
   // Click outside mag panel closes it
   document.addEventListener('click', () => {
     if (magMode && magOpen) closeMag();
   });
 
   wrap.addEventListener('wheel', closeMag, {passive:true});
-
-  window.exportPNG = function() {
-    var svgEl = document.getElementById('diagram');
-    var svgW = svgEl.getAttribute('width');
-    var svgH = svgEl.getAttribute('height');
-    var btn = document.getElementById('export-btn');
-    btn.textContent = 'Saving...';
-    btn.disabled = true;
-    var str = new XMLSerializer().serializeToString(svgEl);
-    if (str.indexOf('xmlns=') === -1) str = str.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
-    str = str.replace(/<svg([^>]*)>/, '<svg$1><rect width="' + svgW + '" height="' + svgH + '" fill="#04042A"/>');
-    var blob = new Blob([str], {type: 'image/svg+xml;charset=utf-8'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'SPGo-Structure-Full.svg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-    btn.textContent = 'Save as SVG';
-    btn.disabled = false;
-  };
 
 });
 </script>
